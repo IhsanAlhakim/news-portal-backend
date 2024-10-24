@@ -3,12 +3,38 @@ import mongoose from "mongoose";
 import { HttpError } from "../errors/http-errors";
 import NewsModel from "../models/news";
 import UserModel from "../models/user";
+import CommentModel from "../models/news-comments";
 
 interface getNewsQuery {
   limit: string;
 }
 
-export const getNewsList: RequestHandler<
+export const getNewsListForUser: RequestHandler<
+  unknown,
+  unknown,
+  unknown,
+  getNewsQuery
+> = async (req, res, next) => {
+  const { limit } = req.query;
+  let newsList;
+  try {
+    if (limit) {
+      newsList = await NewsModel.find({ status: "published" })
+        .limit(Number(limit))
+        .sort({ updatedAt: -1 })
+        .exec();
+    } else {
+      newsList = await NewsModel.find({ status: "published" })
+        .sort({ updatedAt: -1 })
+        .exec();
+    }
+    res.status(200).json(newsList);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getNewsListForAdmin: RequestHandler<
   unknown,
   unknown,
   unknown,
@@ -32,21 +58,25 @@ export const getNewsList: RequestHandler<
 };
 
 interface getNewsBySearchQuery {
-  filter: string;
+  query: string;
 }
 
-export const getNewsListBySearch: RequestHandler<
+export const getNewsListBySearchQuery: RequestHandler<
   unknown,
   unknown,
   unknown,
   getNewsBySearchQuery
 > = async (req, res, next) => {
-  const { filter } = req.query;
+  const { query } = req.query;
   try {
+    if (!query) {
+      throw new HttpError(400, "Need Search Query");
+    }
     const newsList = await NewsModel.find({
+      status: "published",
       $or: [
-        { title: { $regex: filter, $options: "i" } },
-        { content: { $regex: filter, $options: "i" } },
+        { title: { $regex: query, $options: "i" } },
+        { content: { $regex: query, $options: "i" } },
       ],
     })
       .sort({ updatedAt: -1 })
@@ -71,13 +101,22 @@ export const getNewsListByCategory: RequestHandler<
   const { category, limit } = req.query;
   let newsList;
   try {
+    if (!category) {
+      throw new HttpError(400, "Need News Category");
+    }
     if (limit) {
-      newsList = await NewsModel.find({ category: category })
+      newsList = await NewsModel.find({
+        category: category,
+        status: "published",
+      })
         .sort({ updatedAt: -1 })
         .limit(Number(limit))
         .exec();
     } else {
-      newsList = await NewsModel.find({ category: category })
+      newsList = await NewsModel.find({
+        category: category,
+        status: "published",
+      })
         .sort({ updatedAt: -1 })
         .exec();
     }
@@ -126,8 +165,8 @@ export const createNews: RequestHandler<
   const status = req.body.status;
   const authenticatedUserId = req.session.userId;
   try {
-    if (!title) {
-      throw new HttpError(400, "News must have title");
+    if (!title || !content || !image || !category || !status) {
+      throw new HttpError(400, "Parameter Missing");
     }
     const author = await UserModel.findById(authenticatedUserId);
 
@@ -180,8 +219,8 @@ export const updateNews: RequestHandler<
       throw new HttpError(400, "Not a valid news id");
     }
 
-    if (!newTitle) {
-      throw new HttpError(400, "News must have title");
+    if (!newTitle || !newContent || !newImage || !newCategory || !newStatus) {
+      throw new HttpError(400, "Parameter Missing");
     }
 
     const news = await NewsModel.findById(newsId).exec();
@@ -189,10 +228,6 @@ export const updateNews: RequestHandler<
     if (!news) {
       throw new HttpError(404, "News not found");
     }
-
-    // if (!newContent) {
-    //   throw new HttpError(400, "News must have content");
-    // }
 
     const author = await UserModel.findById(authenticatedUserId);
 
@@ -227,7 +262,10 @@ export const deleteNews: RequestHandler = async (req, res, next) => {
       throw new HttpError(404, "No News Found");
     }
 
-    await NewsModel.findByIdAndDelete(newsId);
+    await Promise.all([
+      NewsModel.findByIdAndDelete(newsId),
+      CommentModel.deleteMany({ newsId: newsId }),
+    ]);
 
     res.sendStatus(204); // status code untuk delete success
   } catch (error) {

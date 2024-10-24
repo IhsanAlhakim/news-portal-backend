@@ -15,6 +15,9 @@ export const getComments: RequestHandler<
 > = async (req, res, next) => {
   const { newsId } = req.query;
   try {
+    if (!newsId) {
+      throw new HttpError(400, "Parameter Missing");
+    }
     const commentList = await CommentModel.find({ newsId: newsId })
       .sort({ createdAt: -1 })
       .exec();
@@ -56,8 +59,8 @@ export const createComment: RequestHandler<
   const comment = req.body.comment;
   const newsId = req.body.newsId;
   try {
-    if (!comment) {
-      throw new HttpError(404, "No Comment Found");
+    if (!comment || !newsId) {
+      throw new HttpError(400, "Parameter Missing");
     }
 
     const newComment = await CommentModel.create({
@@ -94,6 +97,7 @@ export const deleteComment: RequestHandler = async (req, res, next) => {
 interface CommentCountQuery {
   newsId: string;
 }
+
 export const getCommentsCount: RequestHandler<
   unknown,
   unknown,
