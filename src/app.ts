@@ -1,13 +1,12 @@
-import express, { NextFunction, Request, Response } from "express";
-import userRoute from "./routes/users";
-import newsRoute from "./routes/news";
-import commentRoute from "./routes/comments";
-import morgan from "morgan";
-import session from "express-session";
-import dotenv from "dotenv";
 import MongoStore from "connect-mongo";
+import dotenv from "dotenv";
+import express, { NextFunction, Request, Response } from "express";
+import session from "express-session";
+import morgan from "morgan";
 import { HttpError } from "./errors/http-errors";
-import cors from "cors";
+import commentRoute from "./routes/comments";
+import newsRoute from "./routes/news";
+import userRoute from "./routes/users";
 
 dotenv.config();
 
