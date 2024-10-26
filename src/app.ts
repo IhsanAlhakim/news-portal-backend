@@ -34,9 +34,9 @@ app.use(
   })
 );
 
-app.use("/api/users", userRoute);
-app.use("/api/news", newsRoute);
-app.use("/api/comments", commentRoute);
+app.use("/users", userRoute);
+app.use("/news", newsRoute);
+app.use("/comments", commentRoute);
 
 app.use((req, res, next) => {
   next(new HttpError(404, "Endpoint not found"));
